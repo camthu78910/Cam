@@ -19,6 +19,7 @@ pip install faster-whisper
 cd <SKILL> && npm install && npx playwright install chromium
 ```
 Cần `ffmpeg` trong PATH. Kiểm tra trước, thiếu gì thì cài, báo phiên bản.
+Trên Windows: dùng `python` thay cho `python3` ở mọi lệnh trong file này, và `pip` là `python -m pip`.
 
 ## 1. Chuyển giọng nói thành chữ
 ```
