@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>html,body{margin:0;background:#1a1a1a}canvas{display:block}</style>
+<canvas id="c"></canvas>
+<script src="../../kit/spring.js"></script>
+<script>
+// Canh mau 8 giay, 120 BPM (1 nhip = 0,5 s). Kich thuoc lay tu ?w=&h= de xuat 16:9 va 9:16 tu cung mot nguon.
+const q = new URLSearchParams(location.search);
+const W = +q.get('w') || 1920, H = +q.get('h') || 1080;
+const c = document.getElementById('c'); c.width = W; c.height = H;
+const ctx = c.getContext('2d');
+window.MOTION = { width: W, height: H, fps: 30, duration: 8 };
+
+const BEAT = 0.5;
+const C = { bg: '#1a1a1a', accent: '#fa520f', text: '#ffffff', dim: '#8a8a8a' };
+const S = Math.min(W, H) / 1080; // ti le chu theo canh ngan
+const soft = { stiffness: 220, damping: 22 };
+
+// Moi khung chi phu thuoc vao t: khong timer, khong random.
+window.seek = (t) => {
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  // Nhip 1: vach nhan mau cam keo ra
+  const k0 = spring(t - 1 * BEAT, soft);
+  ctx.fillStyle = C.accent;
+  ctx.fillRect(W / 2 - 160 * S * k0, H / 2 - 150 * S, 320 * S * k0, 10 * S);
+
+  // Nhip 2 va 2.15: hai dong chu vao lech nhau ~75 ms
+  [['Cam Motion', 120, C.text, 2 * BEAT], ['Claude viết code, code thành phim', 44, C.dim, 2 * BEAT + 0.075]]
+    .forEach(([txt, size, col, at], i) => {
+      const k = spring(t - at, soft);
+      ctx.globalAlpha = Math.min(1, Math.max(0, k));
+      ctx.fillStyle = col;
+      ctx.font = `${i ? 400 : 700} ${size * S}px Inter, Helvetica, Arial, sans-serif`;
+      ctx.fillText(txt, W / 2, H / 2 + (i ? 110 * S : 0) + (1 - k) * 60 * S);
+    });
+  ctx.globalAlpha = 1;
+
+  // Nhip 10 (giay 5): cau chot
+  const k2 = spring(t - 10 * BEAT, soft);
+  ctx.globalAlpha = Math.min(1, Math.max(0, k2));
+  ctx.fillStyle = C.accent;
+  ctx.font = `600 ${52 * S}px Inter, Helvetica, Arial, sans-serif`;
+  ctx.fillText('Brief → Lưới nhịp → Render → Tự chấm', W / 2, H / 2 + 260 * S + (1 - k2) * 40 * S);
+  ctx.globalAlpha = 1;
+};
+</script>

@@ -1,0 +1,11 @@
+{
+  "name": "cam-motion",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node scripts/render-mini.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}
