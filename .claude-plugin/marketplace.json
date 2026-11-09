@@ -1,0 +1,11 @@
+{
+  "name": "cam",
+  "owner": { "name": "camthu78910" },
+  "plugins": [
+    {
+      "name": "cam-edit",
+      "source": "./plugins/cam-edit",
+      "description": "Edit video nói trước camera: phụ đề tiếng Việt khớp lời, chữ nhấn nền vàng, thẻ đồ họa bật lên, render bằng Playwright + FFmpeg."
+    }
+  ]
+}

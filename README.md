@@ -31,3 +31,15 @@ node scripts/render-mini.mjs projects/mau/scene.html out/mau-9x16.mp4 --size 108
 node scripts/render-mini.mjs projects/mau/scene.html out/mau.mp4 --audio assets/nhac.mp3
 ```
 Đã có sẵn Chrome (không muốn tải)? Đặt `CHROME_PATH=/duong/dan/chrome`.
+
+## Plugin `cam-edit`: edit video nói trước camera
+Phụ đề tiếng Việt khớp lời, chữ nhấn nền vàng, thẻ đồ họa bật lên, kèm editor trên trình duyệt để tự chỉnh rồi render.
+
+Cài (gõ trong Claude Code):
+```
+/plugin marketplace add camthu78910/Cam
+/plugin install cam-edit@cam
+```
+Dùng: thả video vào thư mục dự án, nhắn *"edit clip video.mp4 kiểu TikTok, phụ đề + thẻ đồ họa"*.
+Claude sẽ chuyển giọng thành chữ, sửa chính tả, soạn `edit.json`, render, rồi mở editor (http://localhost:4321) để bạn tự tinh chỉnh.
+Chi tiết: `plugins/cam-edit/skills/edit-clip/SKILL.md`.

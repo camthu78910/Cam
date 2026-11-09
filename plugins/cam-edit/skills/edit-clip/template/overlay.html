@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>html,body{margin:0;background:transparent}canvas{display:block}</style>
+<canvas id="c"></canvas>
+<script src="overlay.js"></script>
+<script>
+// window.EDIT duoc render-edit.mjs nap truoc (addInitScript), gom ca meta: {width,height,fps,duration}
+const E = window.EDIT, M = E.meta;
+const c = document.getElementById('c'); c.width = M.width; c.height = M.height;
+const ctx = c.getContext('2d');
+window.MOTION = M;
+window.seek = (t) => drawOverlay(ctx, M.width, M.height, E, t);
+</script>

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cam Edit</title>
+<style>
+  :root { --bg:#141414; --panel:#1e1e1e; --line:#333; --text:#eee; --dim:#999; --accent:#FFE14D; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui, sans-serif; display:flex; height:100vh; }
+  #stage { flex:0 0 auto; padding:16px; display:flex; flex-direction:column; gap:8px; }
+  #wrap { position:relative; height:calc(100vh - 110px); aspect-ratio:9/16; background:#000; }
+  #wrap video, #wrap canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+  #wrap canvas { pointer-events:none; }
+  #side { flex:1; overflow:auto; padding:16px; border-left:1px solid var(--line); min-width:0; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:18px 0 8px; display:flex; gap:8px; align-items:center; }
+  .row { display:flex; gap:6px; align-items:center; padding:4px 6px; border-radius:6px; flex-wrap:wrap; }
+  .row.on { background:#2b2a1d; outline:1px solid var(--accent); }
+  input, select, button { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; }
+  input[type=number] { width:68px; } input.txt { flex:1; min-width:160px; } input.sm { width:90px; }
+  button { cursor:pointer; } button:hover { border-color:var(--accent); }
+  button.main { background:var(--accent); color:#111; border:0; font-weight:600; padding:6px 12px; }
+  #bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  #status { color:var(--dim); }
+  @media (max-width: 800px) { body { flex-direction:column; height:auto; } #wrap { height:60vh; margin:auto; } #side { border-left:0; } }
+</style>
+<div id="stage">
+  <div id="wrap"><video id="v" src="/video" controls playsinline></video><canvas id="c"></canvas></div>
+  <div id="bar">
+    <button class="main" id="save">Lưu (Ctrl+S)</button>
+    <button class="main" id="render">Render MP4</button>
+    <span id="status" role="status"></span>
+  </div>
+</div>
+<div id="side">
+  <h2>Phụ đề <button id="addCap">+ thêm ở thời điểm hiện tại</button></h2>
+  <div id="caps"></div>
+  <h2>Thẻ đồ họa <button id="addCard">+ thêm ở thời điểm hiện tại</button></h2>
+  <div id="cards"></div>
+</div>
+<script src="/overlay.js"></script>
+<script>
+const v = document.getElementById('v'), c = document.getElementById('c'), ctx = c.getContext('2d');
+const $ = (id) => document.getElementById(id), status = (s) => ($('status').textContent = s);
+let E, dirty = false;
+const r2 = (x) => Math.round(x * 100) / 100;
+
+// Moi loai phan tu: cac truong hien tren mot dong
+const FIELDS = {
+  captions: [['start', 'number'], ['end', 'number'], ['text', 'txt'], ['highlight', 'check'], ['pos', ['bottom', 'middle', 'top']]],
+  cards: [['start', 'number'], ['end', 'number'], ['icon', 'sm'], ['title', 'sm'], ['sub', 'sm'], ['x', 'number'], ['y', 'number']],
+};
+
+function field(item, [key, type], label) {
+  let el;
+  if (Array.isArray(type)) {
+    el = document.createElement('select');
+    type.forEach((o) => el.add(new Option(o, o)));
+    el.value = item[key] || type[0];
+    el.onchange = () => set(item, key, el.value);
+  } else if (type === 'check') {
+    el = document.createElement('input'); el.type = 'checkbox'; el.checked = !!item[key];
+    el.onchange = () => set(item, key, el.checked);
+  } else {
+    el = document.createElement('input');
+    if (type === 'number') { el.type = 'number'; el.step = '0.05'; } else el.className = type;
+    el.value = item[key] ?? '';
+    el.oninput = () => set(item, key, type === 'number' ? Number(el.value) : el.value);
+  }
+  el.setAttribute('aria-label', label + ' ' + key);
+  el.title = key;
+  return el;
+}
+function set(item, key, val) { item[key] = val; dirty = true; status('Chưa lưu'); }
+
+function list(kind) {
+  const box = $(kind === 'captions' ? 'caps' : 'cards');
+  box.innerHTML = '';
+  E[kind].sort((a, b) => a.start - b.start).forEach((item, i) => {
+    const row = document.createElement('div'); row.className = 'row'; row._item = item;
+    const go = document.createElement('button'); go.textContent = '▶'; go.title = 'Tua tới'; go.setAttribute('aria-label', 'Tua tới dòng ' + (i + 1));
+    go.onclick = () => { v.currentTime = item.start; };
+    const now = document.createElement('button'); now.textContent = '⏱'; now.title = 'Đặt bắt đầu = thời điểm hiện tại';
+    now.setAttribute('aria-label', now.title);
+    now.onclick = () => { const d = item.end - item.start; set(item, 'start', r2(v.currentTime)); item.end = r2(item.start + d); list(kind); };
+    const del = document.createElement('button'); del.textContent = '✕'; del.title = 'Xoá'; del.setAttribute('aria-label', 'Xoá dòng ' + (i + 1));
+    del.onclick = () => { E[kind].splice(E[kind].indexOf(item), 1); dirty = true; status('Chưa lưu'); list(kind); };
+    row.append(go, now, ...FIELDS[kind].map((f) => field(item, f, 'Dòng ' + (i + 1))), del);
+    box.append(row);
+  });
+}
+
+function add(kind) {
+  const t = r2(v.currentTime);
+  E[kind].push(kind === 'captions' ? { start: t, end: r2(t + 1.2), text: 'Chữ mới' } : { start: t, end: r2(t + 3), icon: '★', title: 'Tiêu đề', sub: 'mô tả', x: 0.5, y: 0.2 });
+  dirty = true; status('Chưa lưu'); list(kind);
+}
+
+async function save() {
+  const r = await fetch('/edit.json', { method: 'POST', body: JSON.stringify(E, null, 1) });
+  status(r.ok ? 'Đã lưu' : 'Lỗi lưu: ' + (await r.text()));
+  if (r.ok) dirty = false;
+}
+
+async function render() {
+  if (dirty) await save();
+  let j = await (await fetch('/render', { method: 'POST' })).json();
+  while (j.state === 'running') {
+    status('Đang render… ' + j.log);
+    await new Promise((r) => setTimeout(r, 1000));
+    j = await (await fetch('/render')).json();
+  }
+  if (j.state === 'done') { status(''); const a = document.createElement('a'); a.href = '/result'; a.textContent = 'Xong, mở MP4'; a.target = '_blank'; a.style.color = 'var(--accent)'; $('status').append(a); }
+  else status('Render lỗi: ' + j.log);
+}
+
+function frame() {
+  if (E && v.videoWidth) {
+    if (c.width !== v.videoWidth) { c.width = v.videoWidth; c.height = v.videoHeight; $('wrap').style.aspectRatio = v.videoWidth + '/' + v.videoHeight; }
+    drawOverlay(ctx, c.width, c.height, E, v.currentTime);
+    document.querySelectorAll('.row').forEach((r) => r.classList.toggle('on', v.currentTime >= r._item.start && v.currentTime < r._item.end));
+  }
+  requestAnimationFrame(frame);
+}
+
+fetch('/edit.json').then((r) => r.json()).then((j) => {
+  E = j; E.captions ||= []; E.cards ||= [];
+  list('captions'); list('cards'); frame();
+});
+$('save').onclick = save; $('render').onclick = render;
+$('addCap').onclick = () => add('captions'); $('addCard').onclick = () => add('cards');
+addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(); } });
+addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+</script>
+</html>
